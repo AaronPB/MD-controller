@@ -1,0 +1,46 @@
+version: 0.0.1
+mqtt_topics:
+  pump_1_flow_rate: "fuxa/md/fir_1"
+  pump_1_temperature: "fuxa/md/tic_12"
+  pump_2_flow_rate: "fuxa/md/fir_2"
+  pump_2_temperature: "fuxa/md/tic_22"
+  pump_1_op: "fuxa/md/pump_11_op"
+  pump_2_op: "fuxa/md/pump_21_op"
+  valve_heating_op: "fuxa/md/valve_31_op"
+control_params:
+  pump_1_pi_controller:
+    default:
+      u: 20.0
+      sp: 3.0
+    control:
+      q0: 6.797516078953206
+      q1: -6.3317808826790865
+    time:
+      delay_s: 8.285714
+      sample_s: 2
+    saturation:
+      top_limit: 50
+      bottom_limit: 0
+    anti_windup:
+      gain: 6.23523
+    hysteresis:
+      top_offset: 1
+      bottom_offset: 1
+  pump_2_pi_controller:
+    default:
+      op: 20.0
+      sp: 3.0
+    control:
+      q0: 7.749864111971733
+      q1: -7.452609050142681
+    time:
+      delay: 13.714286
+      sample: 2
+    saturation:
+      top_limit: 50
+      bottom_limit: 0
+    anti_windup:
+      gain: 6.23523
+    hysteresis:
+      top_offset: 1
+      bottom_offset: 1
