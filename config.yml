@@ -6,13 +6,13 @@ mqtt_topics:
   pump_2_temperature: "fuxa/md/tic_22"
   pump_1_sp: "fuxa/md/pump_11_sp"
   pump_2_sp: "fuxa/md/pump_21_sp"
-  pump_1_op: "fuxa/md/pump_11_op"
-  pump_2_op: "fuxa/md/pump_21_op"
-  valve_heating_op: "fuxa/md/valve_31_op"
   pump_1_manual: "fuxa/md/pump_11_manual"
   pump_2_manual: "fuxa/md/pump_21_manual"
   pump_1_manual_op: "fuxa/md/pump_11_manual_op"
   pump_2_manual_op: "fuxa/md/pump_21_manual_op"
+  pump_1_op: "fuxa/md/pump_11_op"
+  pump_2_op: "fuxa/md/pump_21_op"
+  valve_heating_op: "fuxa/md/valve_31_op"
 control_params:
   pump_1_pi_controller:
     default:
