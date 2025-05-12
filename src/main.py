@@ -6,7 +6,7 @@ import sys
 from config_manager import ConfigManager
 from enums.config_paths import ConfigPaths
 from mqtt_handler import MQTTHandler
-from controllers import PIController_Pump
+from controllers import PIControllerPump
 
 # Logger configuration
 logging.basicConfig(
@@ -16,17 +16,33 @@ logging.basicConfig(
 )
 
 
-def run(mqtt_handler: MQTTHandler, PI_P1: PIController_Pump, PI_P2: PIController_Pump) -> None:
+def run(mqtt_handler: MQTTHandler, PI_P1: PIControllerPump, PI_P2: PIControllerPump) -> None:
     # TODO WIP
     while True:
         P1_SP = float(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P1_SP))
         P2_SP = float(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P2_SP))
         P1_FIR = float(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P1_FIR))
         P2_FIR = float(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P2_FIR))
-        # logging.debug(P1_SP)
-        # logging.debug(P2_SP)
+        P1_MANUAL = bool(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P1_MANUAL))
+        P2_MANUAL = bool(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P2_MANUAL))
+        P1_MANUAL_OP = float(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P1_MANUAL_OP))
+        P2_MANUAL_OP = float(mqtt_handler.get_topic_value_byconfigpath(ConfigPaths.MQTT_TOPIC_P2_MANUAL_OP))
         logging.debug(f"Pumps SP: {P1_SP:.2f} | {P2_SP:.2f}")
         logging.debug(f"FIR m3/h: {P1_FIR:.2f} | {P2_FIR:.2f}")
+        logging.debug(f"Manual mode: {P1_MANUAL} | {P2_MANUAL}")
+        # TODO This if statements needs to be moved to the on_message section of the mqtt client for better performance
+        if P1_MANUAL != PI_P1.is_manual():
+            logging.warning(f"Change P1 to manual mode: {P1_MANUAL}")
+            PI_P1.set_manual(P1_MANUAL)
+        if P2_MANUAL != PI_P2.is_manual():
+            logging.warning(f"Change P2 to manual mode: {P1_MANUAL}")
+            PI_P2.set_manual(P2_MANUAL)
+        if P1_MANUAL_OP != PI_P1.get_manual_op():
+            logging.warning(f"Update P1 manual OP to: {P1_MANUAL_OP}")
+            PI_P1.set_manual_op(P1_MANUAL_OP)
+        if P2_MANUAL_OP != PI_P2.get_manual_op():
+            logging.warning(f"Update P2 manual OP to: {P1_MANUAL_OP}")
+            PI_P2.set_manual_op(P2_MANUAL_OP)
         if PI_P1.get_sp() != P1_SP:
             PI_P1.set_sp(P1_SP)
         if PI_P2.get_sp() != P2_SP:
@@ -76,8 +92,8 @@ def main() -> None:
         sys.exit(0)
     signal.signal(signal.SIGTERM, signal_handler)
     # Configure PI Controllers
-    p1_controller = PIController_Pump(id="Pump 1 PI",params=cfg_mngr.get_value(ConfigPaths.P1_PI_CONTROL_SECTION.value))
-    p2_controller = PIController_Pump(id="Pump 2 PI",params=cfg_mngr.get_value(ConfigPaths.P2_PI_CONTROL_SECTION.value))
+    p1_controller = PIControllerPump(id="Pump 1 PI",params=cfg_mngr.get_value(ConfigPaths.P1_PI_CONTROL_SECTION.value))
+    p2_controller = PIControllerPump(id="Pump 2 PI",params=cfg_mngr.get_value(ConfigPaths.P2_PI_CONTROL_SECTION.value))
     p1_controller.set_manual(False)
     p2_controller.set_manual(False)
     # Connect to MQTT Broker and start loop

@@ -50,7 +50,7 @@ class MQTTHandler:
             # topic_key = self.subscribe_topics.get(msg.topic)
             # logging.debug(f"Received data from topic key: {topic_key}, with value: {value}")
 
-            if self.subscribe_topics.get(msg.topic) is not None:
+            if msg.topic in self.subscribe_topics:
                 self.subscribe_topics[msg.topic] = payload
                 logging.info(f"{msg.topic} updated with value: {payload}")
         except Exception as e:

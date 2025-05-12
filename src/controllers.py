@@ -4,7 +4,7 @@ import logging
 from collections import deque
 from enums.states import ControllerState
 
-class PIController_Pump:
+class PIControllerPump:
     def __init__(self, id: str, params: dict) -> None:
         self.id = id
         self.state = ControllerState.MANUAL
@@ -34,15 +34,19 @@ class PIController_Pump:
     def compute(self, y: float) -> bool:
         if self.state is ControllerState.MANUAL:
             self.r = y
+            self.e.append(0)
+            self.u.append(self.manual_u)
+            self.ui = 0
+            return self.u[-1] > self.last_u + self.hyst_top_offset or self.u[-1] < self.last_u - self.hyst_bottom_offset
         self.e.append(self.r - y)
-        self.u.append(self.u[-1] + self.q0 * self.e[-1] + self.q1 * self.e[-2])
-        if self.state is ControllerState.MANUAL:
-            self.u[-1] = self.manual_u
-        u_sat = min(max(self.u[-1] + self.ui, self.sat_bottom_limit), self.sat_top_limit)
-        # logging.debug(f"[{self.id}]\n\t\t\t u_sat: {u_sat:.2f}\n\t\t\t u: {self.u[-1]:.2f}\n\t\t\t ui: {self.ui:.2f}")
-        self.ui += self.aw_gain * (u_sat - self.u[-1])
+        u_unsat = self.u[-1] + self.q0 * self.e[-1] + self.q1 * self.e[-2] + self.ui
+        # if self.state is ControllerState.MANUAL:
+        #     u_unsat = self.manual_u
+        u_sat = min(max(u_unsat, self.sat_bottom_limit), self.sat_top_limit)
+        logging.debug(f"[{self.id}]\n\t\t\t u_unsat: {u_unsat:.2f}\n\t\t\t u_sat: {u_sat:.2f}\n\t\t\t e: {self.e[-1]:.2f}\n\t\t\t ui: {self.ui:.2f}")
+        self.ui = self.aw_gain * (u_sat - u_unsat)
         # logging.debug(f"[{self.id}] ui update: {self.ui:.2f}")
-        self.u[-1] = u_sat
+        self.u.append(u_sat)
         return self.u[-1] > self.last_u + self.hyst_top_offset or self.u[-1] < self.last_u - self.hyst_bottom_offset
 
     def set_sp(self, sp: float) -> None:
@@ -70,6 +74,12 @@ class PIController_Pump:
     
     def get_e_deque(self) -> deque:
         return self.e
+    
+    def is_manual(self) -> bool:
+        return self.state == ControllerState.MANUAL
+    
+    def get_manual_op(self) -> float:
+        return self.manual_u
 
 class PIController:
     def __init__(self, Kp: float, Ti: float, Ts: float, saturation_bounds: list[float], anti_windup: bool = True) -> None:
