@@ -51,14 +51,17 @@ class PIControllerPump:
 
     def set_sp(self, sp: float) -> None:
         self.r = sp
+        logging.info(f"[{self.id}] Set SP to: {self.r}")
 
     def set_manual(self, enable: bool = True) -> None:
         self.state = ControllerState.AUTO
         if enable:
             self.state = ControllerState.MANUAL
+        logging.info(f"[{self.id}] Set mode to: {self.state}")
     
     def set_manual_op(self, op: float) -> None:
         self.manual_u = op
+        logging.info(f"[{self.id}] Set manual OP to: {self.manual_u}")
     
     def set_last_u(self, u: float) -> None:
         self.last_u = u

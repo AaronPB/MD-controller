@@ -3,11 +3,14 @@ import paho.mqtt.client as mqtt
 
 from typing import Any
 from enums.config_paths import ConfigPaths
+from controllers import PIControllerPump
 
 
 class MQTTHandler:
     def __init__(self):
         self.client = mqtt.Client()
+        self.pump1_pi: PIControllerPump
+        self.pump2_pi: PIControllerPump
         self.subscribe_topics: dict[str, Any] = {}
         self.publish_topics: dict[str, Any] = {}
         self.subscribe_topic_paths: dict[ConfigPaths, str] = {}
@@ -42,14 +45,27 @@ class MQTTHandler:
     def _on_message(self, client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> None:
         try:
             payload = msg.payload.decode('utf-8')
-            # data: dict = json.loads(payload)
-            # logging.debug(payload)
-            logging.debug(f"Raw MQTT topic received: {msg.topic} with payload: {payload}")
-            # value = float(data.get("value", None))
-            # value = float(data)
-            # topic_key = self.subscribe_topics.get(msg.topic)
-            # logging.debug(f"Received data from topic key: {topic_key}, with value: {value}")
 
+            logging.debug(f"Raw MQTT topic received: {msg.topic} with payload: {payload}")
+
+            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P1_SP]:
+                self.pump1_pi.set_sp(float(payload))
+                return
+            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P2_SP]:
+                self.pump2_pi.set_sp(float(payload))
+                return
+            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P1_MANUAL_OP]:
+                self.pump1_pi.set_manual_op(float(payload))
+                return
+            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P2_MANUAL_OP]:
+                self.pump2_pi.set_manual_op(float(payload))
+                return
+            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P1_MANUAL]:
+                self.pump1_pi.set_manual(bool(int(payload)))
+                return
+            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P2_MANUAL]:
+                self.pump2_pi.set_manual(bool(int(payload)))
+                return
             if msg.topic in self.subscribe_topics:
                 self.subscribe_topics[msg.topic] = payload
                 logging.info(f"{msg.topic} updated with value: {payload}")
@@ -64,6 +80,11 @@ class MQTTHandler:
             return
         self.publish_topics[topic_path] = default_value
         self.publish_topic_paths[config_path] = topic_path
+    
+    # MQTT load controllers
+    def load_controllers(self, pump1_pi: PIControllerPump, pump2_pi: PIControllerPump) -> None:
+        self.pump1_pi = pump1_pi
+        self.pump2_pi = pump2_pi
 
     # MQTT publish topic
     def publish_topic_bytopicpath(self, topic_path: str, value: Any) -> bool:
