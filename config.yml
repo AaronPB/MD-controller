@@ -4,9 +4,15 @@ mqtt_topics:
   pump_1_temperature: "fuxa/md/tic_12"
   pump_2_flow_rate: "fuxa/md/fir_2"
   pump_2_temperature: "fuxa/md/tic_22"
+  pump_1_sp: "fuxa/md/pump_11_sp"
+  pump_2_sp: "fuxa/md/pump_21_sp"
   pump_1_op: "fuxa/md/pump_11_op"
   pump_2_op: "fuxa/md/pump_21_op"
   valve_heating_op: "fuxa/md/valve_31_op"
+  pump_1_manual: "fuxa/md/pump_11_manual"
+  pump_2_manual: "fuxa/md/pump_21_manual"
+  pump_1_manual_op: "fuxa/md/pump_11_manual_op"
+  pump_2_manual_op: "fuxa/md/pump_21_manual_op"
 control_params:
   pump_1_pi_controller:
     default:
@@ -22,25 +28,25 @@ control_params:
       top_limit: 50
       bottom_limit: 0
     anti_windup:
-      gain: 6.23523
+      gain: 0.1883
     hysteresis:
       top_offset: 1
       bottom_offset: 1
   pump_2_pi_controller:
     default:
-      op: 20.0
+      u: 20.0
       sp: 3.0
     control:
       q0: 7.749864111971733
       q1: -7.452609050142681
     time:
-      delay: 13.714286
+      delay_s: 13.714286
       sample: 2
     saturation:
       top_limit: 50
       bottom_limit: 0
     anti_windup:
-      gain: 6.23523
+      gain: 0.1398
     hysteresis:
       top_offset: 1
       bottom_offset: 1

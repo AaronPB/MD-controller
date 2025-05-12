@@ -1,6 +1,8 @@
 import math
+import logging
+
 from collections import deque
-from src.enums.states import ControllerState
+from enums.states import ControllerState
 
 class PIController_Pump:
     def __init__(self, id: str, params: dict) -> None:
@@ -29,7 +31,7 @@ class PIController_Pump:
         self.ui: float = 0
 
     # If control value is out of hysteresis bounds, the compute will return true
-    def _compute(self, y: float) -> bool:
+    def compute(self, y: float) -> bool:
         if self.state is ControllerState.MANUAL:
             self.r = y
         self.e.append(self.r - y)
@@ -37,7 +39,9 @@ class PIController_Pump:
         if self.state is ControllerState.MANUAL:
             self.u[-1] = self.manual_u
         u_sat = min(max(self.u[-1] + self.ui, self.sat_bottom_limit), self.sat_top_limit)
+        # logging.debug(f"[{self.id}]\n\t\t\t u_sat: {u_sat:.2f}\n\t\t\t u: {self.u[-1]:.2f}\n\t\t\t ui: {self.ui:.2f}")
         self.ui += self.aw_gain * (u_sat - self.u[-1])
+        # logging.debug(f"[{self.id}] ui update: {self.ui:.2f}")
         self.u[-1] = u_sat
         return self.u[-1] > self.last_u + self.hyst_top_offset or self.u[-1] < self.last_u - self.hyst_bottom_offset
 
@@ -52,8 +56,20 @@ class PIController_Pump:
     def set_manual_op(self, op: float) -> None:
         self.manual_u = op
     
+    def set_last_u(self, u: float) -> None:
+        self.last_u = u
+    
     def get_op(self) -> float:
         return self.u[-1]
+    
+    def get_sp(self) -> float:
+        return self.r
+    
+    def get_u_deque(self) -> deque:
+        return self.u
+    
+    def get_e_deque(self) -> deque:
+        return self.e
 
 class PIController:
     def __init__(self, Kp: float, Ti: float, Ts: float, saturation_bounds: list[float], anti_windup: bool = True) -> None:
