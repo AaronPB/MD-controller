@@ -9,10 +9,11 @@ class PIControllerPump:
         self.id = id
         self.state = ControllerState.MANUAL
         # Control params
-        self.q0 = float(params["control"]["q0"])
-        self.q1 = float(params["control"]["q1"])
-        # System delay
-        self.tr  = int(params["time"]["delay_s"])
+        self.kp = float(params["control"]["kp"])
+        self.ti = float(params["control"]["ti"])
+        # Time steps
+        self.tr  = int(params["time_steps"]["tr"])
+        self.dt = int(params["time_steps"]["dt"])
         # Default setpoint (m3/h) and manual operation point (%)
         self.r = float(params["default"]["sp"])
         self.manual_u = float(params["default"]["u"])
@@ -25,8 +26,7 @@ class PIControllerPump:
         self.sat_bottom_limit = float(params["saturation"]["bottom_limit"])
         self.aw_gain = float(params["anti_windup"]["gain"])
         # Default control values of u and e
-        self.u = deque([0]*self.tr, maxlen=self.tr)
-        self.e = deque([0]*self.tr, maxlen=self.tr)
+        self.u = self.manual_u
         # Control integral acumulator
         self.ui: float = 0
 
@@ -34,20 +34,17 @@ class PIControllerPump:
     def compute(self, y: float) -> bool:
         if self.state is ControllerState.MANUAL:
             self.r = y
-            self.e.append(0)
-            self.u.append(self.manual_u)
+            self.u = self.manual_u
             self.ui = 0
-            return self.u[-1] > self.last_u + self.hyst_top_offset or self.u[-1] < self.last_u - self.hyst_bottom_offset
-        self.e.append(self.r - y)
-        u_unsat = self.u[-1] + self.q0 * self.e[-1] + self.q1 * self.e[-2] + self.ui
-        # if self.state is ControllerState.MANUAL:
-        #     u_unsat = self.manual_u
-        u_sat = min(max(u_unsat, self.sat_bottom_limit), self.sat_top_limit)
-        logging.debug(f"[{self.id}]\n\t\t\t u_unsat: {u_unsat:.2f}\n\t\t\t u_sat: {u_sat:.2f}\n\t\t\t e: {self.e[-1]:.2f}\n\t\t\t ui: {self.ui:.2f}")
-        self.ui = self.aw_gain * (u_sat - u_unsat)
-        # logging.debug(f"[{self.id}] ui update: {self.ui:.2f}")
-        self.u.append(u_sat)
-        return self.u[-1] > self.last_u + self.hyst_top_offset or self.u[-1] < self.last_u - self.hyst_bottom_offset
+            return self.u > self.last_u + self.hyst_top_offset or self.u < self.last_u - self.hyst_bottom_offset
+        e = self.r - y
+        up = self.kp * e
+        ui = self.ui + self.kp * (self.dt / self.ti) * e
+        u_unsat = up + ui
+        self.u = min(max(u_unsat, self.sat_bottom_limit), self.sat_top_limit)
+        logging.debug(f"[{self.id}]\n\t\t\t u_unsat: {u_unsat:.2f}\n\t\t\t u_sat: {self.u:.2f}\n\t\t\t e: {e:.2f}\n\t\t\t ui: {self.ui:.2f}")
+        self.ui = ui + self.aw_gain * (self.u - u_unsat)
+        return self.u > self.last_u + self.hyst_top_offset or self.u < self.last_u - self.hyst_bottom_offset
 
     def set_sp(self, sp: float) -> None:
         self.r = sp
@@ -67,16 +64,10 @@ class PIControllerPump:
         self.last_u = u
     
     def get_op(self) -> float:
-        return self.u[-1]
+        return self.u
     
     def get_sp(self) -> float:
         return self.r
-    
-    def get_u_deque(self) -> deque:
-        return self.u
-    
-    def get_e_deque(self) -> deque:
-        return self.e
     
     def is_manual(self) -> bool:
         return self.state == ControllerState.MANUAL

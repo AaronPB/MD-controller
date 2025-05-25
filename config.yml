@@ -19,11 +19,11 @@ control_params:
       u: 20.0
       sp: 3.0
     control:
-      q0: 6.797516078953206
-      q1: -6.3317808826790865
-    time:
-      delay_s: 8.285714
-      sample_s: 2
+      kp: 6.56
+      ti: 28.19
+    time_steps:
+      tr: 5
+      dt: 2
     saturation:
       top_limit: 50
       bottom_limit: 0
@@ -37,11 +37,11 @@ control_params:
       u: 20.0
       sp: 3.0
     control:
-      q0: 7.749864111971733
-      q1: -7.452609050142681
-    time:
-      delay_s: 13.714286
-      sample: 2
+      kp: 7.60
+      ti: 51.14
+    time_steps:
+      tr: 6
+      dt: 2
     saturation:
       top_limit: 50
       bottom_limit: 0
