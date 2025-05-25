@@ -34,8 +34,7 @@ class PIControllerPump:
     def compute(self, y: float) -> bool:
         if self.state is ControllerState.MANUAL:
             self.r = y
-            self.u = self.manual_u
-            self.ui = 0
+            self.u = self.ui = self.manual_u
             return self.u > self.last_u + self.hyst_top_offset or self.u < self.last_u - self.hyst_bottom_offset
         e = self.r - y
         up = self.kp * e
