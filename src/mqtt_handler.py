@@ -11,10 +11,10 @@ class MQTTHandler:
         self.client = mqtt.Client()
         self.pump1_pi: PIControllerPump
         self.pump2_pi: PIControllerPump
+        self.pump1_op_publish: str
+        self.pump2_op_publish: str
         self.subscribe_topics: dict[str, Any] = {}
         self.publish_topics: dict[str, Any] = {}
-        self.subscribe_topic_paths: dict[ConfigPaths, str] = {}
-        self.publish_topic_paths: dict[ConfigPaths, str] = {}
     
     # MQTT client handlers
     def connect(self, host: str, port: int) -> None:
@@ -25,7 +25,7 @@ class MQTTHandler:
         except Exception as e:
             logging.critical(f"Could not connect to the MQTT Broker: {e}")
             return
-        self.client.loop_start()
+        self.client.loop_forever()
     
     def disconnect(self) -> None:
         self.client.loop_stop()
@@ -35,8 +35,6 @@ class MQTTHandler:
     def _on_connect(self, client: mqtt.Client, userdata: Any, flags: dict[str, Any], rc: int) -> None:
         if rc == 0:
             logging.info("Correctly connected to MQTT broker.")
-            # Configure topic connections
-            # TODO Is this better?? -> client.subscribe_callback()
             topic_list = [client.subscribe(topic) for topic in self.subscribe_topics]
             logging.info(f"Successfully subscribed into {len(topic_list)} mqtt topics")
         else:
@@ -48,38 +46,42 @@ class MQTTHandler:
 
             logging.debug(f"Raw MQTT topic received: {msg.topic} with payload: {payload}")
 
-            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P1_SP]:
-                self.pump1_pi.set_sp(float(payload))
-                return
-            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P2_SP]:
-                self.pump2_pi.set_sp(float(payload))
-                return
-            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P1_MANUAL_OP]:
-                self.pump1_pi.set_manual_op(float(payload))
-                return
-            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P2_MANUAL_OP]:
-                self.pump2_pi.set_manual_op(float(payload))
-                return
-            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P1_MANUAL]:
-                self.pump1_pi.set_manual(bool(int(payload)))
-                return
-            if msg.topic == self.subscribe_topic_paths[ConfigPaths.MQTT_TOPIC_P2_MANUAL]:
-                self.pump2_pi.set_manual(bool(int(payload)))
-                return
-            if msg.topic in self.subscribe_topics:
-                self.subscribe_topics[msg.topic] = payload
+            handler = self.subscribe_topics.get(msg.topic)
+
+            if handler:
+                handler(payload)
                 logging.info(f"{msg.topic} updated with value: {payload}")
+
         except Exception as e:
             logging.error(f"Error trying to process mqtt message from {msg.topic}: {e}")
     
     # MQTT topics
-    def load_topic(self, config_path: ConfigPaths, topic_path: str, default_value: Any, subscribe: bool = True) -> None:
-        if subscribe:
-            self.subscribe_topics[topic_path] = default_value
-            self.subscribe_topic_paths[config_path] = topic_path
-            return
-        self.publish_topics[topic_path] = default_value
-        self.publish_topic_paths[config_path] = topic_path
+    def load_topic(self, config_path: ConfigPaths, topic_path: str) -> None:
+        # TODO Manually set default values??
+        # Topic subscriptions
+        if config_path == ConfigPaths.MQTT_TOPIC_P1_FIR:
+            self.subscribe_topics[topic_path] = lambda payload: self._controller_compute(self.pump1_op_publish, self.pump1_pi, float(payload))
+        if config_path == ConfigPaths.MQTT_TOPIC_P2_FIR:
+            self.subscribe_topics[topic_path] = lambda payload: self._controller_compute(self.pump2_op_publish, self.pump2_pi, float(payload))
+        if config_path == ConfigPaths.MQTT_TOPIC_P1_MANUAL:
+            self.subscribe_topics[topic_path] = lambda payload: self.pump1_pi.set_manual(bool(int(payload)))
+        if config_path == ConfigPaths.MQTT_TOPIC_P2_MANUAL:
+            self.subscribe_topics[topic_path] = lambda payload: self.pump2_pi.set_manual(bool(int(payload)))
+        if config_path == ConfigPaths.MQTT_TOPIC_P1_MANUAL_OP:
+            self.subscribe_topics[topic_path] = lambda payload: self.pump1_pi.set_manual_op(float(payload))
+        if config_path == ConfigPaths.MQTT_TOPIC_P2_MANUAL_OP:
+            self.subscribe_topics[topic_path] = lambda payload: self.pump2_pi.set_manual_op(float(payload))
+        if config_path == ConfigPaths.MQTT_TOPIC_P1_SP:
+            self.subscribe_topics[topic_path] = lambda payload: self.pump1_pi.set_sp(float(payload))
+        if config_path == ConfigPaths.MQTT_TOPIC_P2_SP:
+            self.subscribe_topics[topic_path] = lambda payload: self.pump2_pi.set_sp(float(payload))
+        # Topic publishers
+        if config_path == ConfigPaths.MQTT_TOPIC_P1_OP:
+            self.publish_topics[topic_path] = 0.0
+            self.pump1_op_publish = topic_path
+        if config_path == ConfigPaths.MQTT_TOPIC_P2_OP:
+            self.publish_topics[topic_path] = 0.0
+            self.pump2_op_publish = topic_path
     
     # MQTT load controllers
     def load_controllers(self, pump1_pi: PIControllerPump, pump2_pi: PIControllerPump) -> None:
@@ -87,7 +89,7 @@ class MQTTHandler:
         self.pump2_pi = pump2_pi
 
     # MQTT publish topic
-    def publish_topic_bytopicpath(self, topic_path: str, value: Any) -> bool:
+    def publish_topic(self, topic_path: str, value: Any) -> bool:
         if self.publish_topics.get(topic_path) is None:
             logging.warning(f"Could not find topic with following path {topic_path}")
             return False
@@ -100,20 +102,12 @@ class MQTTHandler:
             logging.warning(f"Error publishing mqtt message, code: {result.rc}")
             return False
         return True
-
-    def publish_topic_byconfigpath(self, config_path: ConfigPaths, value: Any) -> bool:
-        topic_path = self.publish_topic_paths.get(config_path)
-        if topic_path is None:
-            logging.warning(f"Could not find topic path, using config path {config_path}")
-            return False
-        return self.publish_topic_bytopicpath(topic_path, value)
     
-    # MQTT subscribe topic
-    # def get_topic_path(self, config_path: ConfigPaths) -> str:
-    #     return self.s
-
-    def get_topic_value_bytopicpath(self, topic_path: str) -> Any:
-        return self.subscribe_topics.get(topic_path)
-
-    def get_topic_value_byconfigpath(self, config_path: ConfigPaths) -> Any:
-        return self.get_topic_value_bytopicpath(self.subscribe_topic_paths.get(config_path))
+    # Internal topic processes
+    def _controller_compute(self, publish_topic_path: str, controller: PIControllerPump, y: float) -> None:
+        published = False
+        update = controller.compute(y)
+        if update:
+            published = self.publish_topic(publish_topic_path, controller.get_op())
+        if published:
+            controller.set_last_u(controller.get_op())
