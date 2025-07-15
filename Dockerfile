@@ -1,10 +1,11 @@
 FROM python:3.13.3-slim
 
-WORKDIR /app
+COPY --from=ghcr.io/astral-sh/uv:0.7.20 /uv /uvx /bin/
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+WORKDIR /app
 
 COPY . .
 
-CMD ["python", "src/main.py"]
+RUN uv sync --locked
+
+CMD ["uv", "run", "src/main.py"]

@@ -1,0 +1,12 @@
+[project]
+name = "md-controller"
+version = "0.1.0"
+authors = [{ name = "AaronPB", email = "aaron.pb@psa.es" }]
+description = "IFAPA MD plant pump and valve controllers"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
+dependencies = [
+    "paho-mqtt>=2.1.0",
+    "pyyaml>=6.0.2",
+]
