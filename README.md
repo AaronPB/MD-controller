@@ -56,6 +56,8 @@ services:
       context: ../path/to/repo/MD-controller
     networks:
       - fuxa-net
+    volumes:
+      - ./config-md-controllers.yml:/app/config.yml
     restart: unless-stopped
 ```
 
