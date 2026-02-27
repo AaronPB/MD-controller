@@ -19,7 +19,7 @@ control_params:
       u: 20.0
       sp: 3.0
     control:
-      kp: 6.56
+      kp: 4.05
       ti: 28.19
     time_steps:
       tr: 5
